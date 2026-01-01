@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 function uid() {
-  // простой уникальный id без библиотек
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 export default function App() {
-  const [clickCount, setClickCount] = useState(0);
-  const sessionId = useMemo(() => uid(), []);
+  const [localClicks, setLocalClicks] = useState(0);
+  const [sentClicks, setSentClicks] = useState(0);
+  const [status, setStatus] = useState("Ожидаю...");
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
@@ -15,34 +15,57 @@ export default function App() {
     tg?.expand();
   }, []);
 
-  const sendClick = () => {
+  const localTest = () => {
+    setLocalClicks((c) => c + 1);
+    setStatus("✅ Локальный клик (Mini App не должен закрываться)");
+  };
+
+  const sendToBot = () => {
     const tg = window.Telegram?.WebApp;
     if (!tg) {
-      alert("Открой это внутри Telegram (в браузере SDK нет).");
+      alert("Открой внутри Telegram.");
       return;
     }
 
     const payload = {
       type: "CLICK_TEST",
       eventId: uid(),
-      sessionId,
-      clickCount: clickCount + 1,
+      localClicks: localClicks + 1,
+      sentClicks: sentClicks + 1,
       ts: new Date().toISOString()
     };
 
-    tg.sendData(JSON.stringify(payload));
-    setClickCount((c) => c + 1);
+    setSentClicks((c) => c + 1);
+    setStatus("📨 Отправляю в бот...");
 
-    // Если хочешь закрывать миниапп после клика — раскомментируй:
-    // tg.close();
+    tg.sendData(JSON.stringify(payload));
+
+    // НЕ вызываем tg.close()
+    // Некоторые клиенты всё равно могут закрыть — поэтому локальная кнопка выше для проверки.
   };
 
   return (
     <div style={{ padding: 16, fontFamily: "system-ui, Arial" }}>
-      <h2>Mini App тест клика</h2>
+      <h2>Mini App тест</h2>
 
       <button
-        onClick={sendClick}
+        onClick={localTest}
+        style={{
+          width: "100%",
+          padding: "14px 16px",
+          borderRadius: 14,
+          border: "none",
+          fontWeight: 800,
+          fontSize: 16,
+          cursor: "pointer",
+          marginBottom: 12
+        }}
+      >
+        ✅ Локальный тест (клик #{localClicks + 1})
+      </button>
+
+      <button
+        onClick={sendToBot}
         style={{
           width: "100%",
           padding: "14px 16px",
@@ -53,12 +76,10 @@ export default function App() {
           cursor: "pointer"
         }}
       >
-        ✅ Отправить CLICK_TEST (клик #{clickCount + 1})
+        📨 Отправить событие боту (#{sentClicks + 1})
       </button>
 
-      <p style={{ opacity: 0.7, marginTop: 12 }}>
-        sessionId: <code>{sessionId}</code>
-      </p>
+      <p style={{ marginTop: 12, opacity: 0.8 }}>{status}</p>
     </div>
   );
 }
